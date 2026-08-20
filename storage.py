@@ -2,12 +2,22 @@ import os
 import unicodedata
 from contextlib import closing
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import psycopg
 import psycopg.rows
 from dotenv import load_dotenv
 
 load_dotenv()
+
+BRT = ZoneInfo("America/Sao_Paulo")
+
+
+def now_brt():
+    """Hora atual no fuso de Brasilia, ingenua (sem tzinfo) -- consistente com o resto
+    do banco independente do fuso do host que roda o processo (local, GitHub Actions e
+    Vercel podem estar em fusos diferentes; datetime.now() sozinho pegaria o do host)."""
+    return datetime.now(BRT).replace(tzinfo=None)
 
 
 def normalize_text(text):

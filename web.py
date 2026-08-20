@@ -14,7 +14,7 @@ from math import ceil
 from flask import Flask, render_template, request, redirect, url_for
 from markupsafe import Markup, escape
 
-from storage import NewsStore, normalize_text
+from storage import NewsStore, normalize_text, now_brt
 from updater import BackgroundUpdater
 from scraping_sites.site import all_sites
 from deep_search import deep_search, supported_sources
@@ -95,7 +95,7 @@ def index():
         fontes = None
     if hoje:
         # "Noticias de hoje" tem precedencia sobre o filtro de periodo por ano.
-        agora = datetime.now()
+        agora = now_brt()
         min_date = agora.replace(hour=0, minute=0, second=0, microsecond=0)
         max_date = agora.replace(hour=23, minute=59, second=59, microsecond=999999)
         ano_ini = ano_fim = None
@@ -136,7 +136,7 @@ def index():
         ano_min=ano_min,
         ano_max=ano_max,
         tem_filtro=bool(termo or fonte or ano_ini or ano_fim or hoje),
-        atualizado_em=datetime.now().strftime('%d/%m/%Y %H:%M'),
+        atualizado_em=now_brt().strftime('%d/%m/%Y %H:%M'),
     )
 
 
@@ -151,7 +151,7 @@ def busca_profunda():
         ano_ini, ano_fim = ano_fim, ano_ini
 
     if hoje:
-        agora = datetime.now()
+        agora = now_brt()
         min_date = agora.replace(hour=0, minute=0, second=0, microsecond=0)
         max_date = agora.replace(hour=23, minute=59, second=59, microsecond=999999)
     else:
@@ -197,7 +197,7 @@ def canais():
         n_total=len(todas),
         salvo=request.args.get('salvo') == '1',
         total=store.count_news(),
-        atualizado_em=datetime.now().strftime('%d/%m/%Y %H:%M'),
+        atualizado_em=now_brt().strftime('%d/%m/%Y %H:%M'),
     )
 
 

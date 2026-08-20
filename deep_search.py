@@ -16,6 +16,7 @@ from urllib.parse import quote
 import requests
 
 from scraping_sites.site import REQUEST_HEADERS, _soup, Site
+from storage import now_brt
 
 # Timeout curto e sem retry: a busca profunda roda sob demanda (clique do usuario),
 # entao e melhor uma fonte falhar rapido do que travar a resposta.
@@ -120,6 +121,6 @@ def deep_search(store, termo, min_date=None, max_date=None, log=print):
                 continue
 
             encontradas += 1
-            data = data_real or datetime.now()
+            data = data_real or now_brt()
             novas += store.add_news(fonte, item['materia'], item['link'], data, estimada=data_real is None)
     return novas, encontradas

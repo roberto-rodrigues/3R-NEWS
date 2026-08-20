@@ -3,9 +3,12 @@ import time
 from urllib.parse import urlparse, urljoin
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
+
+BRT = ZoneInfo("America/Sao_Paulo")
 
 REQUEST_HEADERS = {
     'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
@@ -187,8 +190,9 @@ class Site:
             # parsedate_to_datetime devolve sem tzinfo. Feeds como o do G1 usam
             # esse valor como UTC de fato, entao assumimos UTC antes de converter.
             parsed = parsed.replace(tzinfo=timezone.utc)
-        # normaliza para horario local ingênuo, comparável com datetime.now()
-        parsed = parsed.astimezone().replace(tzinfo=None)
+        # normaliza para horario de Brasilia ingênuo, independente do fuso do host
+        # que roda o scraper (local, GitHub Actions etc. podem estar em fusos diferentes)
+        parsed = parsed.astimezone(BRT).replace(tzinfo=None)
         return parsed
 
     def _scrape_html(self, target):

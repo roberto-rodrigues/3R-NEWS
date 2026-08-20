@@ -8,6 +8,7 @@ import threading
 from datetime import datetime
 
 from scraping_sites.site import Site, all_sites
+from storage import now_brt
 
 UPDATE_INTERVAL_SECONDS = 30 * 60
 
@@ -31,7 +32,7 @@ def collect_once(store, sites=None, log=print):
 
         for item in site.news:
             data_real = item['data']
-            data = data_real or datetime.now()
+            data = data_real or now_brt()
             store.add_news(nome, item['materia'], item['link'], data, estimada=data_real is None)
             total += 1
     return total
