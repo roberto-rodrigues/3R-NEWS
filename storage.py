@@ -83,7 +83,7 @@ class NewsStore:
         params = []
 
         if fontes:
-            placeholders = ','.join('%s' * len(fontes))
+            placeholders = ','.join(['%s'] * len(fontes))
             conditions.append(f'fonte IN ({placeholders})')
             params.extend(fontes)
         if search:
@@ -126,7 +126,7 @@ class NewsStore:
         params = []
 
         if fontes:
-            placeholders = ','.join('%s' * len(fontes))
+            placeholders = ','.join(['%s'] * len(fontes))
             conditions.append(f'fonte IN ({placeholders})')
             params.extend(fontes)
         if search:
