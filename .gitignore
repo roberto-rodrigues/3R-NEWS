@@ -17,6 +17,9 @@ asimov_news.db
 .env
 .env.*
 
+# Arquivos internos de sessao do Claude Code
+.claude/*.lock
+
 # Sistema operacional / editores
 .DS_Store
 Thumbs.db

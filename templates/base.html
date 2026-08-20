@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}R3 News{% endblock %}</title>
+  <title>{% block title %}3R News{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -11,7 +11,7 @@
 <header class="mast" id="masthead">
 <div class="wrap">
   <div class="mast-top">
-    <span class="lbl">R3 News</span>
+    <span class="lbl">3R News</span>
     <span class="date-str">{{ atualizado_em }}</span>
     <div class="mast-links">
       <a href="{{ url_for('index') }}" class="{{ 'on' if request.endpoint == 'index' }}">Notícias</a>
@@ -19,7 +19,7 @@
     </div>
   </div>
   <div class="mast-main">
-    <span class="nameplate">R3 NEWS</span>
+    <span class="nameplate">3R NEWS</span>
     <span class="mast-rule"></span>
     <div class="mast-info">
       <div class="ed">Visualizador local</div>
@@ -41,7 +41,7 @@
 </main>
 
 <footer class="ft wrap">
-  <span class="ft-brand">R3 NEWS</span>
+  <span class="ft-brand">3R NEWS</span>
   <span class="ft-meta">Visualizador local · {{ total }} matérias no acervo</span>
 </footer>
 </body>
