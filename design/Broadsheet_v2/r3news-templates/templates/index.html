@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}R3 News{% if termo %} — {{ termo }}{% endif %}{% endblock %}
+
+{% block searchbar %}
+<form class="sb-in" method="get" action="{{ url_for('index') }}">
+  <div class="sb-q">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="q" type="search" name="q" value="{{ termo }}"
+           placeholder="Buscar assunto, nome, serviço do GDF…" autocomplete="off" autofocus>
+  </div>
+  <select name="fonte" class="sb-sel" aria-label="Canal">
+    <option value="">Todos os canais</option>
+    <option value="{{ escopo_ativos }}" {{ 'selected' if fonte == escopo_ativos }}>★ Meus canais ({{ n_ativos }})</option>
+    {% for f in fontes_disponiveis %}
+      <option value="{{ f }}" {{ 'selected' if f == fonte }}>{{ f }}</option>
+    {% endfor %}
+  </select>
+  <input class="sb-yr" type="number" name="ano_ini" value="{{ ano_ini }}"
+         placeholder="{{ ano_min or 'ano' }}" min="1990" max="2100" aria-label="Ano inicial">
+  <span class="sb-dash">–</span>
+  <input class="sb-yr" type="number" name="ano_fim" value="{{ ano_fim }}"
+         placeholder="{{ ano_max or 'ano' }}" min="1990" max="2100" aria-label="Ano final">
+  <label class="chk-hoje">
+    <input type="checkbox" name="hoje" value="1" {{ 'checked' if hoje }}> Hoje
+  </label>
+  <button class="btn" type="submit">Buscar</button>
+</form>
+
+{# chips de filtro ativo #}
+<div class="chips">
+{% if tem_filtro %}
+  {% set hp = '1' if hoje else none %}
+  {% if termo %}
+    <span class="chip">"{{ termo }}" <a href="{{ url_for('index', fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+  {% endif %}
+  {% if fonte == escopo_ativos %}
+    <span class="chip">★ meus canais <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+  {% elif fonte %}
+    <span class="chip">{{ fonte }} <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+  {% endif %}
+  {% if hoje %}
+    <span class="chip">hoje <a href="{{ url_for('index', q=termo, fonte=fonte) }}">✕</a></span>
+  {% endif %}
+  {% if ano_ini or ano_fim %}
+    <span class="chip">{{ ano_ini or '…' }}–{{ ano_fim or '…' }} <a href="{{ url_for('index', q=termo, fonte=fonte) }}">✕</a></span>
+  {% endif %}
+  <a class="limpar" href="{{ url_for('index') }}">limpar tudo</a>
+{% endif %}
+<span class="contagem">
+  {{ total }} resultado{{ 's' if total != 1 }}
+  {% if total and max_page > 1 %} · {{ primeiro }}–{{ ultimo }}{% endif %}
+</span>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# resultado de busca profunda anterior #}
+{% if deep_resultado is not none %}
+<div class="deep-msg">
+  {% if deep_resultado %}
+    <strong>{{ deep_resultado }}</strong> nova{{ 's' if deep_resultado != 1 }} matéria{{ 's' if deep_resultado != 1 }} importada{{ 's' if deep_resultado != 1 }} do arquivo.
+  {% else %}
+    Nenhuma matéria nova encontrada para essa busca.
+  {% endif %}
+</div>
+{% endif %}
+
+{# busca profunda #}
+{% if termo %}
+<div class="deep">
+  <div>
+    <div class="lbl">Não achou?</div>
+    <p>Busca "{{ termo }}" no arquivo dos canais e importa matérias antigas{% if ano_ini or ano_fim %}, período {{ ano_ini or '…' }}–{{ ano_fim or '…' }}{% endif %}.</p>
+    <div class="srcs">{{ deep_sources | join(', ') }}</div>
+  </div>
+  <form method="post" action="{{ url_for('busca_profunda') }}"
+        onsubmit="var b=this.querySelector('button');b.textContent='⏳ Buscando…';b.disabled=true;">
+    <input type="hidden" name="q"       value="{{ termo }}">
+    <input type="hidden" name="fonte"   value="{{ fonte }}">
+    <input type="hidden" name="ano_ini" value="{{ ano_ini }}">
+    <input type="hidden" name="ano_fim" value="{{ ano_fim }}">
+    <input type="hidden" name="hoje"    value="{{ '1' if hoje else '' }}">
+    <button class="btn" type="submit">🔎 Buscar no arquivo</button>
+  </form>
+</div>
+{% endif %}
+
+{# feed #}
+{% if noticias %}
+
+  {# hero: primeira matéria em destaque #}
+  {% set lead = noticias[0] %}
+  {% set sidebar = noticias[1:5] %}
+  <section class="hero">
+  <div class="hero-grid">
+    <div class="lead">
+      <div class="lead-body">
+        <span class="tag tag-mag lead-tag">{{ lead.fonte }}</span>
+        <h2 class="lead-head">
+          <a href="{{ lead.link }}" target="_blank" rel="noopener noreferrer">{{ lead.titulo_html }}</a>
+        </h2>
+        <div class="lead-meta">
+          <span>{{ lead.data.strftime('%d/%m/%y') }}</span>
+          <span>{{ lead.data.strftime('%H:%M') }}</span>
+          {% if lead.data_estimada %}<span title="Data aproximada">~ aprox.</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <aside class="sidebar">
+      <div class="sidebar-head">Destaques</div>
+      {% for n in sidebar %}
+      <div class="sitem">
+        <span class="sitem-num">0{{ loop.index }}</span>
+        <div class="sitem-body">
+          <div class="sitem-tag">{{ n.fonte }}</div>
+          <div class="sitem-title">
+            <a href="{{ n.link }}" target="_blank" rel="noopener noreferrer">{{ n.titulo_html }}</a>
+          </div>
+          <div class="sitem-meta">{{ n.data.strftime('%d/%m/%y') }} · {{ n.data.strftime('%H:%M') }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </aside>
+  </div>
+  </section>
+
+  {# índice de canais presentes (itens 5+) #}
+  {% set resto = noticias[5:] %}
+  {% set canais_resto = resto | map(attribute='fonte') | unique | list %}
+  {% if canais_resto | length > 1 %}
+  <nav class="jump" aria-label="Canais nesta página">
+    {% for c in canais_resto %}
+      {% set cnt = resto | selectattr('fonte','equalto',c) | list | length %}
+      <a href="#sec-{{ c }}">{{ c }}<sup>{{ cnt }}</sup></a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+
+  {# seções agrupadas por canal #}
+  {% for canal, itens in resto | groupby('fonte') %}
+  <section class="sec" id="sec-{{ canal }}">
+    <div class="sec-head">
+      <div class="sec-rule-wrap"><div class="sec-rule-t"></div><div class="sec-rule-b"></div></div>
+      <h2 class="sec-name">{{ canal }}</h2>
+      <span class="sec-total">{{ itens | list | length }} nesta página</span>
+    </div>
+    <div class="cols g3">
+      {% for n in itens %}
+      <article class="card {{ 'card-lead' if loop.first else 'card-sm' }}">
+        <div class="card-body">
+          <span class="card-tag">{{ n.fonte }}</span>
+          <h3 class="card-title">
+            <a href="{{ n.link }}" target="_blank" rel="noopener noreferrer">{{ n.titulo_html }}</a>
+          </h3>
+          <div class="card-meta">
+            <span>{{ n.data.strftime('%d/%m/%y') }}</span>
+            <span>{{ n.data.strftime('%H:%M') }}</span>
+            {% if n.data_estimada %}
+              <span class="tag-aprox" title="Data é a hora de coleta">~ aprox.</span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+
+  {# paginação #}
+  {% if max_page > 1 %}
+  {% set hp = '1' if hoje else none %}
+  <nav class="pager" aria-label="Paginação">
+    {% if page > 1 %}
+      <a href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page-1) }}">← anterior</a>
+    {% else %}
+      <span class="off">← anterior</span>
+    {% endif %}
+    <span class="pg-info">{{ page }} / {{ max_page }}</span>
+    {% if page < max_page %}
+      <a href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page+1) }}">próxima →</a>
+    {% else %}
+      <span class="off">próxima →</span>
+    {% endif %}
+    <span class="ml contagem">{{ total }} matérias</span>
+  </nav>
+  {% endif %}
+
+{% else %}
+<div class="empty">
+  <h2>Nenhuma matéria encontrada{% if termo %} para "{{ termo }}"{% endif %}.</h2>
+  <p>Tente outros termos ou limpe os filtros.</p>
+  {% if tem_filtro %}<a href="{{ url_for('index') }}" class="btn btn-ghost" style="display:inline-block;margin-top:8px">Limpar filtros</a>{% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

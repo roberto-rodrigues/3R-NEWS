@@ -1,0 +1,67 @@
+"""Coleta de noticias reutilizavel (Fase 2).
+
+Extrai o loop de atualizacao que antes vivia dentro da versao de terminal, para que
+tanto o CLI (asimov_news.py) quanto a interface web (web.py) usem exatamente o mesmo
+codigo de coleta e a mesma lista de fontes (scraping_sites.site.all_sites).
+"""
+import threading
+from datetime import datetime
+
+from scraping_sites.site import Site, all_sites
+
+UPDATE_INTERVAL_SECONDS = 30 * 60
+
+
+def collect_once(store, sites=None, log=print):
+    """Faz uma passada por todas as fontes, gravando as noticias novas em `store`.
+
+    Falha em uma fonte nao interrompe as demais. Datas ausentes sao gravadas como a hora
+    da coleta e marcadas com estimada=True (ver storage.add_news / coluna data_estimada).
+    Retorna a quantidade de noticias processadas.
+    """
+    sites = sites if sites is not None else all_sites()
+    total = 0
+    for nome in sites:
+        try:
+            site = Site(nome)
+            site.update_news()
+        except Exception as exc:
+            log(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] Falha ao atualizar '{nome}': {exc}")
+            continue
+
+        for item in site.news:
+            data_real = item['data']
+            data = data_real or datetime.now()
+            store.add_news(nome, item['materia'], item['link'], data, estimada=data_real is None)
+            total += 1
+    return total
+
+
+class BackgroundUpdater:
+    """Roda collect_once em intervalos, numa thread daemon. Compartilhado por CLI e web."""
+
+    def __init__(self, store, interval=UPDATE_INTERVAL_SECONDS, sites=None, log=print):
+        self.store = store
+        self.interval = interval
+        self.sites = sites
+        self.log = log
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _loop(self):
+        while not self._stop.is_set():
+            try:
+                collect_once(self.store, self.sites, self.log)
+            except Exception as exc:  # rede/IO inesperado nao pode matar a thread
+                self.log(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] Erro na coleta: {exc}")
+            self._stop.wait(self.interval)
+
+    def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()

@@ -1,0 +1,20 @@
+# Ambiente virtual (recriar localmente a partir de requirements.txt)
+.venv/
+venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Backups do banco e arquivos legados do formato pickle (ja migrados para o SQLite)
+backups/
+
+# Banco de dados local (dados de runtime; snapshot completo vai no ZIP de checkpoint)
+asimov_news.db
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

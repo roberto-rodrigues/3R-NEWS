@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Canais — R3 News{% endblock %}
+
+{% block searchbar %}{% endblock %}
+
+{% block content %}
+<div class="cv-head">
+  <h1>Canais</h1>
+  <div class="cv-count">{{ n_ativos }} de {{ n_total }} ativos</div>
+</div>
+
+{% if salvo %}
+<div class="deep-msg" style="margin-bottom:0">✓ Canais salvos com sucesso.</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('canais') }}">
+  <div class="cv-grid">
+    {% for c in canais %}
+    <label class="citem {{ 'on' if c.ativo }}">
+      <input type="checkbox" name="ativos" value="{{ c.nome }}" {{ 'checked' if c.ativo }}
+             style="display:none">
+      <span class="cbox"></span>
+      <div>
+        <div class="ci-name">{{ c.nome }}</div>
+        <div class="ci-slug">{% if c.ativo %}★ ativo{% endif %}</div>
+      </div>
+      <span class="ci-n">{{ c.total }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <div class="cv-bar">
+    <button class="btn" type="submit">Salvar canais</button>
+    <a href="{{ url_for('index') }}" class="btn btn-ghost">← Voltar ao feed</a>
+    {% if salvo %}<span class="msg-ok">✓ Salvo.</span>{% endif %}
+  </div>
+</form>
+{% endblock %}

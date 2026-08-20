@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}R3 News{% if termo %} — {{ termo }}{% endif %}{% endblock %}
+
+{% block content %}
+
+{# ——— filtros ——— #}
+<form class="filters" method="get" action="{{ url_for('index') }}">
+  <div class="fsearch">
+    <input class="campo-busca" type="search" name="q" value="{{ termo }}"
+           placeholder="Buscar assunto, nome, serviço do GDF…" autofocus autocomplete="off">
+  </div>
+
+  <select name="fonte" aria-label="Canal">
+    <option value="">Todos os canais</option>
+    <option value="{{ escopo_ativos }}" {{ 'selected' if fonte == escopo_ativos }}>
+      ★ Meus canais ({{ n_ativos }})
+    </option>
+    {% for f in fontes_disponiveis %}
+      <option value="{{ f }}" {{ 'selected' if f == fonte }}>{{ f }}</option>
+    {% endfor %}
+  </select>
+
+  <input class="campo-ano" type="number" name="ano_ini" value="{{ ano_ini }}"
+         placeholder="{{ ano_min or 'ano' }}" min="1990" max="2100" aria-label="Ano inicial">
+  <span class="ano-sep">–</span>
+  <input class="campo-ano" type="number" name="ano_fim" value="{{ ano_fim }}"
+         placeholder="{{ ano_max or 'ano' }}" min="1990" max="2100" aria-label="Ano final">
+
+  <label class="chk-hoje" title="Trazer só as matérias de hoje">
+    <input type="checkbox" name="hoje" value="1" {{ 'checked' if hoje }}>
+    Notícias de hoje
+  </label>
+
+  <button class="btn-buscar" type="submit">Buscar</button>
+</form>
+
+{# ——— chips de filtro ativo ——— #}
+<div class="resultado-info">
+  {% if tem_filtro %}
+    {% set hoje_param = '1' if hoje else none %}
+
+    {% if termo %}
+      <span class="chip">
+        busca: "{{ termo }}"
+        <a href="{{ url_for('index', fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hoje_param) }}"
+           title="Remover">✕</a>
+      </span>
+    {% endif %}
+
+    {% if fonte == escopo_ativos %}
+      <span class="chip">
+        meus canais ({{ n_ativos }})
+        <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hoje_param) }}"
+           title="Remover">✕</a>
+      </span>
+    {% elif fonte %}
+      <span class="chip">
+        canal: {{ fonte }}
+        <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hoje_param) }}"
+           title="Remover">✕</a>
+      </span>
+    {% endif %}
+
+    {% if hoje %}
+      <span class="chip">
+        só de hoje
+        <a href="{{ url_for('index', q=termo, fonte=fonte) }}" title="Remover">✕</a>
+      </span>
+    {% endif %}
+
+    {% if ano_ini or ano_fim %}
+      <span class="chip">
+        período: {{ ano_ini or '…' }}–{{ ano_fim or '…' }}
+        <a href="{{ url_for('index', q=termo, fonte=fonte) }}" title="Remover">✕</a>
+      </span>
+    {% endif %}
+
+    <a class="limpar-tudo" href="{{ url_for('index') }}">limpar tudo</a>
+  {% endif %}
+
+  <span class="contagem">
+    {{ total }} resultado{{ 's' if total != 1 }}
+    {% if total and max_page > 1 %} · {{ primeiro }}–{{ ultimo }}{% endif %}
+  </span>
+</div>
+
+{# ——— resultado de busca profunda anterior ——— #}
+{% if deep_resultado is not none %}
+  <div class="deep-msg">
+    {% if deep_resultado %}
+      <strong>{{ deep_resultado }}</strong>
+      nova{{ 's' if deep_resultado != 1 }} matéria{{ 's' if deep_resultado != 1 }}
+      importada{{ 's' if deep_resultado != 1 }} do arquivo dos canais.
+    {% else %}
+      Nenhuma matéria nova encontrada no arquivo dos canais para essa busca.
+    {% endif %}
+  </div>
+{% endif %}
+
+{# ——— busca profunda (exibe só quando há termo) ——— #}
+{% if termo %}
+  <form class="deep-form" method="post" action="{{ url_for('busca_profunda') }}"
+        onsubmit="this.classList.add('buscando');var b=this.querySelector('.btn-deep');b.textContent='⏳ Buscando… pode levar alguns segundos';">
+    <input type="hidden" name="q"       value="{{ termo }}">
+    <input type="hidden" name="fonte"   value="{{ fonte }}">
+    <input type="hidden" name="ano_ini" value="{{ ano_ini }}">
+    <input type="hidden" name="ano_fim" value="{{ ano_fim }}">
+    <input type="hidden" name="hoje"    value="{{ '1' if hoje else '' }}">
+    <div>
+      <button class="btn-deep" type="submit"
+              title="Procura "{{ termo }}" na busca dos canais suportados e importa matérias antigas.">
+        🔎 Buscar no arquivo dos canais
+      </button>
+      <p class="deep-hint">
+        {% if ano_ini or ano_fim %}
+          vasculha o período {{ ano_ini or '…' }}–{{ ano_fim or '…' }} em:
+        {% else %}
+          busca nos canais:
+        {% endif %}
+        {{ deep_sources | join(', ') }}
+      </p>
+    </div>
+  </form>
+{% endif %}
+
+{# ——— feed agrupado por canal ——— #}
+{% if noticias %}
+
+  {# índice rápido de canais presentes na página #}
+  {% set canais_pagina = noticias | map(attribute='fonte') | unique | list %}
+  {% if canais_pagina | length > 1 %}
+    <nav class="jump" aria-label="Canais nesta página">
+      {% for c in canais_pagina %}
+        {% set cnt = noticias | selectattr('fonte', 'equalto', c) | list | length %}
+        <a href="#canal-{{ c }}">{{ c }}<sup>{{ cnt }}</sup></a>
+      {% endfor %}
+    </nav>
+  {% endif %}
+
+  {# grupos #}
+  {% for canal, itens in noticias | groupby('fonte') %}
+    <section class="grupo" id="canal-{{ canal }}">
+      <div class="grupo-head">
+        <h2 class="grupo-nome">{{ canal }}</h2>
+        <span class="grupo-meta">{{ itens | list | length }} nesta página</span>
+      </div>
+      <ol class="lista" start="{{ primeiro if loop.first else 1 }}">
+        {% for n in itens %}
+          <li class="item">
+            <div class="item-data" title="{{ 'data aproximada (coleta)' if n.data_estimada else 'data de publicação' }}">
+              {% if n.data_estimada %}<span class="aprox" title="Data é a hora de coleta, não a publicação real">~</span>{% endif %}
+              {{ n.data.strftime('%d/%m/%y') }}
+              <span>{{ n.data.strftime('%H:%M') }}</span>
+            </div>
+            <a class="item-titulo" href="{{ n.link }}" target="_blank" rel="noopener noreferrer">
+              {{ n.titulo_html }}
+            </a>
+            <div class="item-data" style="margin-top:2px">
+              <span class="fonte-badge">{{ n.fonte }}</span>
+              {% if n.data_estimada %}
+                <span class="tag-aprox" title="Data é a hora de coleta, não a publicação real">data aproximada</span>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endfor %}
+
+  {# paginação #}
+  {% if max_page > 1 %}
+    {% set hoje_param = '1' if hoje else none %}
+    <nav class="paginacao" aria-label="Paginação">
+      {% if page > 1 %}
+        <a class="pg" href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hoje_param, page=page-1) }}">
+          ‹ anterior
+        </a>
+      {% else %}
+        <span class="pg disabled">‹ anterior</span>
+      {% endif %}
+
+      <span class="pg-info">página {{ page }} de {{ max_page }}</span>
+
+      {% if page < max_page %}
+        <a class="pg" href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hoje_param, page=page+1) }}">
+          próxima ›
+        </a>
+      {% else %}
+        <span class="pg disabled">próxima ›</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+
+{% else %}
+  <div class="vazio">
+    <p>Nenhuma matéria encontrada{% if termo %} para <strong>"{{ termo }}"</strong>{% endif %}.</p>
+    {% if tem_filtro %}
+      <a href="{{ url_for('index') }}">Limpar filtros e ver tudo</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}
