@@ -4,3 +4,4 @@ lxml
 pytimedinput
 flask
 psycopg[binary]
+python-dotenv

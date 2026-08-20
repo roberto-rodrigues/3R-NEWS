@@ -24,7 +24,7 @@ class AsimovNews:
         self.channel_filter = None
         self.date_range = None
 
-        self.store = NewsStore('asimov_news.db')
+        self.store = NewsStore()
         self._migrate_legacy_pickle_if_needed()
 
         self.sites = self.store.get_active_sites()

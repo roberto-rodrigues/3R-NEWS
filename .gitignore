@@ -13,6 +13,10 @@ backups/
 # Banco de dados local (dados de runtime; snapshot completo vai no ZIP de checkpoint)
 asimov_news.db
 
+# Segredos locais (DATABASE_URL etc.)
+.env
+.env.*
+
 # Sistema operacional / editores
 .DS_Store
 Thumbs.db

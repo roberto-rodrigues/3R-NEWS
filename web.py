@@ -25,11 +25,9 @@ ESCOPO_ATIVOS = '__ativos__'
 # Coletar em background junto com o servidor (Fase 2). Defina ASIMOV_NO_COLLECT=1 para
 # subir a interface apenas como visualizador, sem raspar as fontes.
 COLETAR = os.environ.get('ASIMOV_NO_COLLECT') != '1'
-# Caminho absoluto do banco (ao lado deste arquivo), para independer do diretorio de trabalho.
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'asimov_news.db')
 
 app = Flask(__name__)
-store = NewsStore(DB_PATH)
+store = NewsStore()
 
 
 def _parse_int(value, default=None):
