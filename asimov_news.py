@@ -2,7 +2,6 @@ from scraping_sites.site import all_sites
 import os
 from datetime import datetime
 import sys
-import pickle
 import webbrowser
 from math import ceil
 
@@ -25,28 +24,11 @@ class AsimovNews:
         self.date_range = None
 
         self.store = NewsStore()
-        self._migrate_legacy_pickle_if_needed()
-
         self.sites = self.store.get_active_sites()
 
         # Coleta em background compartilhada com a versao web (updater.py)
         self.updater = BackgroundUpdater(self.store)
         self.updater.start()
-
-    def _migrate_legacy_pickle_if_needed(self):
-        if not self.store.is_empty() or 'news' not in os.listdir():
-            return
-
-        with open('news', 'rb') as fp:
-            old_news = pickle.load(fp)
-        old_sites = []
-        if 'sites' in os.listdir():
-            with open('sites', 'rb') as fp:
-                old_sites = pickle.load(fp)
-
-        self.store.migrate_from_pickle(old_news, old_sites)
-        print(f'Migradas {len(old_news)} noticias do arquivo antigo para o banco SQLite (asimov_news.db).')
-        input('Pressione Enter para continuar...')
 
     def _receive_command(self, valid_commands, timeout=30):
         command, timed = timedInput('>>', timeout)
@@ -261,5 +243,6 @@ class AsimovNews:
 
 
 
-self = AsimovNews()
-self.main_loop()
+if __name__ == '__main__':
+    app = AsimovNews()
+    app.main_loop()

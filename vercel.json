@@ -4,5 +4,9 @@
       "maxDuration": 120,
       "excludeFiles": "{asimov_news.db,asimov_news.py,backups/**,design/**,static/**,__pycache__/**,.git/**}"
     }
-  }
+  },
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/wsgi.py" }
+  ]
 }

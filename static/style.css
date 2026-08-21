@@ -149,7 +149,8 @@ img{display:block;width:100%;height:100%;object-fit:cover}
 .card-title{font-size:clamp(16px,1.8vw,19px);font-weight:600;line-height:1.2}
 .card-title a:hover{color:var(--cyan)}
 .card-meta{display:flex;gap:var(--sp2);align-items:baseline;font-size:11.5px;color:var(--ink-3);margin-top:auto;padding-top:var(--sp1)}
-.aprox-dot{color:var(--mag);title:cursor:help}
+.aprox-dot{color:var(--mag);cursor:help}
+.tag-aprox{font-size:10px;color:var(--mag);letter-spacing:.06em;cursor:help}
 
 .card-lead .card-title{font-size:clamp(20px,2.2vw,26px);border-left:3px solid var(--mag);padding-left:var(--sp2)}
 .card-sm .card-title{font-size:15px}
