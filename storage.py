@@ -182,6 +182,12 @@ class NewsStore:
             conn.execute('DELETE FROM sites_ativos WHERE fonte = %s', (fonte,))
             conn.commit()
 
+    def get_latest_news_date(self):
+        """Timestamp da noticia mais recente no banco, ou None se vazio."""
+        with closing(self._connect()) as conn:
+            row = conn.execute('SELECT MAX(data) AS dt FROM noticias').fetchone()
+        return row['dt'] if row and row['dt'] else None
+
     def is_empty(self):
         with closing(self._connect()) as conn:
             count = conn.execute('SELECT COUNT(*) AS c FROM noticias').fetchone()['c']

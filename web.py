@@ -8,7 +8,7 @@ Uso:
     python web.py            # abre em http://127.0.0.1:5000
 """
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import ceil
 
 from flask import Flask, render_template, request, redirect, url_for
@@ -20,6 +20,20 @@ from scraping_sites.site import all_sites
 from deep_search import deep_search, supported_sources
 
 PAGE_SIZE = 20
+
+# Cache simples em memória para queries que mudam pouco (reduz latência no Vercel).
+_cache: dict = {}
+_CACHE_TTL = timedelta(minutes=5)
+
+def _cached(key, fn):
+    now = datetime.now()
+    if key in _cache:
+        val, expires = _cache[key]
+        if now < expires:
+            return val
+    val = fn()
+    _cache[key] = (val, now + _CACHE_TTL)
+    return val
 # Valor especial do filtro de canal: restringe o feed as fontes ativas (sites_ativos).
 ESCOPO_ATIVOS = '__ativos__'
 # Coletar em background junto com o servidor (Fase 2). Defina ASIMOV_NO_COLLECT=1 para
@@ -113,7 +127,9 @@ def index():
     for n in noticias:
         n['titulo_html'] = _highlight(n['materia'], termo)
 
-    ano_min, ano_max = store.get_date_bounds()
+    ano_min, ano_max = _cached('date_bounds', store.get_date_bounds)
+    ultima = _cached('ultima_noticia', store.get_latest_news_date)
+    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
 
     return render_template(
         'index.html',
@@ -128,15 +144,15 @@ def index():
         hoje=hoje,
         ano_ini=ano_ini or '',
         ano_fim=ano_fim or '',
-        fontes_disponiveis=store.get_all_sources(),
-        n_ativos=len(store.get_active_sites()),
+        fontes_disponiveis=_cached('fontes', store.get_all_sources),
+        n_ativos=_cached('n_ativos', lambda: len(store.get_active_sites())),
         escopo_ativos=ESCOPO_ATIVOS,
         deep_resultado=deep_resultado,
-        deep_sources=supported_sources(),
+        deep_sources=_cached('deep_sources', supported_sources),
         ano_min=ano_min,
         ano_max=ano_max,
         tem_filtro=bool(termo or fonte or ano_ini or ano_fim or hoje),
-        atualizado_em=now_brt().strftime('%d/%m/%Y %H:%M'),
+        atualizado_em=atualizado_em,
     )
 
 
@@ -190,14 +206,16 @@ def canais():
         {'nome': f, 'ativo': f in ativos, 'total': contagens.get(f, 0)}
         for f in todas
     ]
+    ultima = _cached('ultima_noticia', store.get_latest_news_date)
+    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
     return render_template(
         'canais.html',
         canais=canais_info,
         n_ativos=len(ativos),
         n_total=len(todas),
         salvo=request.args.get('salvo') == '1',
-        total=store.count_news(),
-        atualizado_em=now_brt().strftime('%d/%m/%Y %H:%M'),
+        total=_cached('total_geral', store.count_news),
+        atualizado_em=atualizado_em,
     )
 
 
