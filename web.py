@@ -11,7 +11,7 @@ import os
 from datetime import datetime, timedelta
 from math import ceil
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from markupsafe import Markup, escape
 
 from storage import NewsStore, normalize_text, now_brt
@@ -20,6 +20,18 @@ from scraping_sites.site import all_sites
 from deep_search import deep_search, supported_sources
 
 PAGE_SIZE = 20
+
+# Proteção da área de administração (página Canais).
+# Defina ADMIN_KEY e SECRET_KEY nas variáveis de ambiente do Vercel.
+# Sem ADMIN_KEY definida, o acesso é livre (modo desenvolvimento local).
+ADMIN_KEY = os.environ.get('ADMIN_KEY', '')
+
+
+def _admin_ok():
+    """Retorna True se o usuário está autenticado ou se ADMIN_KEY não foi configurada."""
+    if not ADMIN_KEY:
+        return True
+    return session.get('admin') is True
 
 # Cache simples em memória para queries que mudam pouco (reduz latência no Vercel).
 _cache: dict = {}
@@ -41,6 +53,7 @@ ESCOPO_ATIVOS = '__ativos__'
 COLETAR = os.environ.get('ASIMOV_NO_COLLECT') != '1'
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 store = NewsStore()
 
 
@@ -186,8 +199,32 @@ def busca_profunda():
     ))
 
 
+@app.route('/admin-login', methods=['GET', 'POST'])
+def admin_login():
+    erro = None
+    if request.method == 'POST':
+        if request.form.get('senha') == ADMIN_KEY:
+            session['admin'] = True
+            return redirect(request.args.get('next') or url_for('canais'))
+        erro = 'Senha incorreta.'
+    ultima = _cached('ultima_noticia', store.get_latest_news_date)
+    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
+    return render_template('admin_login.html', erro=erro,
+                           total=_cached('total_geral', store.count_news),
+                           atualizado_em=atualizado_em)
+
+
+@app.route('/admin-logout')
+def admin_logout():
+    session.pop('admin', None)
+    return redirect(url_for('index'))
+
+
 @app.route('/canais', methods=['GET', 'POST'])
 def canais():
+    if not _admin_ok():
+        return redirect(url_for('admin_login', next=url_for('canais')))
+
     todas = all_sites()
 
     if request.method == 'POST':

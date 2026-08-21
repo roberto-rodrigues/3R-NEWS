@@ -83,7 +83,8 @@ img{display:block;width:100%;height:100%;object-fit:cover}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--rule);padding:3px 8px 3px 10px}
 .chip a{color:var(--ink-3);line-height:1}
 .chip a:hover{color:var(--mag);text-decoration:none}
-.limpar{color:var(--ink-3);font-size:12px}
+.limpar{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-family:var(--serif);font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:3px 10px;border:1px solid var(--mag);color:var(--mag);background:var(--mag-bg);cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.limpar:hover{background:var(--mag);color:#fff;text-decoration:none}
 .contagem{margin-left:auto;font-size:12px;color:var(--ink-3)}
 
 /* ── deep search ── */
@@ -216,3 +217,18 @@ img{display:block;width:100%;height:100%;object-fit:cover}
 .atalho{font-size:11.5px;font-family:var(--serif);font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 12px;border:1px solid var(--rule);color:var(--ink-2);background:var(--paper);transition:background .12s,color .12s,border-color .12s}
 .atalho:hover{background:var(--ink);color:#fff;border-color:var(--ink);text-decoration:none}
 .atalho-on{background:var(--mag);color:#fff!important;border-color:var(--mag)}
+
+/* ── login admin ── */
+.login-wrap{display:flex;justify-content:center;padding:var(--sp6) var(--sp4)}
+.login-box{width:100%;max-width:400px}
+.login-head{margin-bottom:var(--sp4);border-bottom:3px solid var(--ink);padding-bottom:var(--sp3)}
+.login-title{font-family:var(--display);font-size:36px;letter-spacing:.03em;margin:var(--sp1) 0}
+.login-sub{font-size:14px;color:var(--ink-2);margin-top:var(--sp2)}
+.login-erro{background:var(--mag-bg);border:1px solid var(--mag);color:var(--mag);padding:var(--sp2) var(--sp3);font-size:13px;margin-bottom:var(--sp3)}
+.login-form{display:flex;flex-direction:column;gap:var(--sp2)}
+.login-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.login-input{border:0;border-bottom:2px solid var(--ink);background:transparent;padding:8px 0;font-size:16px;width:100%}
+.login-input:focus{outline:none;border-color:var(--cyan)}
+.login-back{margin-top:var(--sp4);font-size:13px;color:var(--ink-3)}
+.logout-link{margin-left:auto;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.logout-link:hover{color:var(--mag)}

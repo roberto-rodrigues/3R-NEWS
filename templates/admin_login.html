@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Acesso restrito — 3R NEWS{% endblock %}
+
+{% block searchbar %}{% endblock %}
+
+{% block content %}
+<div class="login-wrap">
+  <div class="login-box">
+    <div class="login-head">
+      <span class="lbl">Área restrita</span>
+      <h1 class="login-title">Gerenciar Canais</h1>
+      <p class="login-sub">Esta área é restrita ao administrador. Informe a senha de acesso.</p>
+    </div>
+    {% if erro %}
+    <div class="login-erro">{{ erro }}</div>
+    {% endif %}
+    <form method="post" class="login-form">
+      <label class="login-label" for="senha">Senha</label>
+      <input class="login-input" id="senha" type="password" name="senha"
+             placeholder="••••••••" autofocus autocomplete="current-password">
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+    <div class="login-back">
+      <a href="{{ url_for('index') }}">← Voltar ao feed</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
