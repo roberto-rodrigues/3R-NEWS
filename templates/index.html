@@ -2,11 +2,12 @@
 {% block title %}3R NEWS{% if termo %} — {{ termo }}{% endif %}{% endblock %}
 
 {% block searchbar %}
-<form class="sb-in" method="get" action="{{ url_for('index') }}">
+<form class="sb-in" method="get" action="{{ url_for('index') }}" autocomplete="off">
   <div class="sb-q">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input id="q" type="search" name="q" value="{{ termo }}"
-           placeholder="Buscar assunto, nome, serviço do GDF…" autocomplete="off" autofocus>
+    <input id="q" type="text" name="q" value="{{ termo }}"
+           placeholder="Buscar assunto, nome, serviço do GDF…"
+           autocomplete="off" spellcheck="false" autofocus>
   </div>
   <select name="fonte" class="sb-sel" aria-label="Canal">
     <option value="">Todos os canais</option>
@@ -227,6 +228,11 @@
   <p>Tente outros termos ou limpe os filtros.</p>
   {% if tem_filtro %}<a href="{{ url_for('index') }}" class="btn btn-ghost" style="display:inline-block;margin-top:8px">Limpar filtros</a>{% endif %}
 </div>
+{% endif %}
+
+{# Auto-refresh a cada 30 min quando sem filtros ativos #}
+{% if not tem_filtro %}
+<script>setTimeout(function(){ location.reload(); }, 30 * 60 * 1000);</script>
 {% endif %}
 
 {% endblock %}

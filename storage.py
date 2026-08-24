@@ -74,7 +74,8 @@ class NewsStore:
             conn.commit()
             return cursor.rowcount
 
-    def get_news(self, fontes=None, search=None, min_date=None, max_date=None, limit=None, offset=0):
+    def get_news(self, fontes=None, search=None, min_date=None, max_date=None,
+                 limit=None, offset=0, priority_fontes=None):
         if fontes is not None and len(fontes) == 0:
             return []
 
@@ -98,7 +99,15 @@ class NewsStore:
         if conditions:
             query += ' WHERE ' + ' AND '.join(conditions)
 
-        query += ' ORDER BY data DESC'
+        # Quando priority_fontes é fornecido e não há filtro de fonte ativo,
+        # eleva as fontes prioritárias ao topo sem quebrar a ordenação por data.
+        if priority_fontes and not fontes:
+            ph = ','.join(['%s'] * len(priority_fontes))
+            query += f' ORDER BY CASE WHEN fonte IN ({ph}) THEN 0 ELSE 1 END, data DESC'
+            params.extend(priority_fontes)
+        else:
+            query += ' ORDER BY data DESC'
+
         if limit is not None:
             query += ' LIMIT %s OFFSET %s'
             params.extend([limit, offset])

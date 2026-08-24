@@ -21,6 +21,9 @@ from deep_search import deep_search, supported_sources
 
 PAGE_SIZE = 20
 
+# Fontes do DF que recebem prioridade no feed principal (sem filtro ativo).
+FONTES_DF = ['agenciabrasilia-df', 'metropoles-df', 'correio-df', 'r7-df']
+
 # Proteção da área de administração (página Canais).
 # Defina ADMIN_KEY e SECRET_KEY nas variáveis de ambiente do Vercel.
 # Sem ADMIN_KEY definida, o acesso é livre (modo desenvolvimento local).
@@ -136,7 +139,8 @@ def index():
     page = min(max(page, 1), max_page)
     offset = (page - 1) * PAGE_SIZE
 
-    noticias = store.get_news(limit=PAGE_SIZE, offset=offset, **filtros)
+    priority = FONTES_DF if not fontes else None
+    noticias = store.get_news(limit=PAGE_SIZE, offset=offset, priority_fontes=priority, **filtros)
     for n in noticias:
         n['titulo_html'] = _highlight(n['materia'], termo)
 
