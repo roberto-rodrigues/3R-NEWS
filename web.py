@@ -60,6 +60,17 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
 store = NewsStore()
 
 
+@app.template_filter('miles')
+def miles_filter(n):
+    """Formata número com ponto como separador de milhar (estilo BR)."""
+    return f'{int(n):,}'.replace(',', '.')
+
+
+@app.context_processor
+def inject_visitas():
+    return {'visitas': _cached('visitas', store.get_visitas)}
+
+
 def _parse_int(value, default=None):
     value = (value or '').strip()
     return int(value) if value.isdigit() else default
@@ -138,6 +149,9 @@ def index():
     max_page = max(1, ceil(total / PAGE_SIZE))
     page = min(max(page, 1), max_page)
     offset = (page - 1) * PAGE_SIZE
+
+    store.increment_visitas()
+    _cache.pop('visitas', None)  # invalida cache para refletir novo valor
 
     priority = FONTES_DF if not fontes else None
     noticias = store.get_news(limit=PAGE_SIZE, offset=offset, priority_fontes=priority, **filtros)

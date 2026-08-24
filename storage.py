@@ -59,6 +59,16 @@ class NewsStore:
                     fonte TEXT PRIMARY KEY
                 )
             ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS site_stats (
+                    chave TEXT PRIMARY KEY,
+                    valor BIGINT NOT NULL DEFAULT 0
+                )
+            ''')
+            conn.execute(
+                "INSERT INTO site_stats (chave, valor) VALUES ('visitas', 0)"
+                " ON CONFLICT (chave) DO NOTHING"
+            )
             conn.commit()
 
     def add_news(self, fonte, materia, link, data, estimada=False):
@@ -201,3 +211,20 @@ class NewsStore:
         with closing(self._connect()) as conn:
             count = conn.execute('SELECT COUNT(*) AS c FROM noticias').fetchone()['c']
         return count == 0
+
+    def increment_visitas(self):
+        """Incrementa o contador de visitas ao site de forma atômica."""
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "INSERT INTO site_stats (chave, valor) VALUES ('visitas', 1)"
+                " ON CONFLICT (chave) DO UPDATE SET valor = site_stats.valor + 1"
+            )
+            conn.commit()
+
+    def get_visitas(self):
+        """Retorna o total de visitas registradas."""
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT valor FROM site_stats WHERE chave = 'visitas'"
+            ).fetchone()
+        return row['valor'] if row else 0

@@ -43,6 +43,7 @@
 <footer class="ft wrap">
   <span class="ft-brand">3R NEWS</span>
   <span class="ft-meta">Visualizador local · {{ total }} matérias no acervo</span>
+  {% if visitas %}<span class="ft-vis">{{ visitas | miles }} acessos</span>{% endif %}
 </footer>
 </body>
 </html>
