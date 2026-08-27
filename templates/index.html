@@ -230,9 +230,25 @@
 </div>
 {% endif %}
 
-{# Auto-refresh a cada 30 min quando sem filtros ativos #}
+{# Auto-refresh a cada 30 min quando sem filtros ativos.
+   Usa visibilitychange para contornar throttling de timers em abas inativas. #}
 {% if not tem_filtro %}
-<script>setTimeout(function(){ location.reload(); }, 30 * 60 * 1000);</script>
+<script>
+(function(){
+  var carregada = Date.now();
+  var INTERVALO = 30 * 60 * 1000;
+  function recarregar(){ location.reload(); }
+  var timer = setTimeout(recarregar, INTERVALO);
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) {
+      if (Date.now() - carregada >= INTERVALO) {
+        clearTimeout(timer);
+        recarregar();
+      }
+    }
+  });
+})();
+</script>
 {% endif %}
 
 {% endblock %}
