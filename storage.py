@@ -84,6 +84,32 @@ class NewsStore:
             conn.commit()
             return cursor.rowcount
 
+    def add_news_many(self, rows):
+        """Insere varias noticias numa unica conexao (ignorando duplicatas).
+
+        `rows` e um iteravel de (fonte, materia, link, data, estimada). Abrir uma conexao
+        por materia -- como add_news faz -- custa um round trip de rede por item, o que
+        domina o tempo de coleta quando o banco e remoto (Supabase). Retorna quantas
+        foram de fato inseridas.
+        """
+        valores = [
+            (fonte, materia, normalize_text(materia), link, data, int(bool(estimada)))
+            for fonte, materia, link, data, estimada in rows
+        ]
+        if not valores:
+            return 0
+
+        with closing(self._connect()) as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                '''INSERT INTO noticias (fonte, materia, materia_normalizada, link, data, data_estimada)
+                   VALUES (%s, %s, %s, %s, %s, %s)
+                   ON CONFLICT (fonte, materia) DO NOTHING''',
+                valores,
+            )
+            conn.commit()
+            return cursor.rowcount
+
     def get_news(self, fontes=None, search=None, min_date=None, max_date=None,
                  limit=None, offset=0, priority_fontes=None):
         if fontes is not None and len(fontes) == 0:

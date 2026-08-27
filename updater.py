@@ -30,11 +30,18 @@ def collect_once(store, sites=None, log=print):
             log(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] Falha ao atualizar '{nome}': {exc}")
             continue
 
-        for item in site.news:
-            data_real = item['data']
-            data = data_real or now_brt()
-            store.add_news(nome, item['materia'], item['link'], data, estimada=data_real is None)
-            total += 1
+        agora = now_brt()
+        linhas = [
+            (nome, item['materia'], item['link'], item['data'] or agora, item['data'] is None)
+            for item in site.news
+        ]
+        # Uma unica conexao por fonte, em vez de uma por materia (ver add_news_many).
+        try:
+            store.add_news_many(linhas)
+        except Exception as exc:
+            log(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] Falha ao gravar '{nome}': {exc}")
+            continue
+        total += len(linhas)
     return total
 
 
