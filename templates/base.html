@@ -24,6 +24,7 @@
     <div class="mast-links">
       <a href="{{ url_for('index') }}" class="{{ 'on' if request.endpoint == 'index' }}">Notícias</a>
       <a href="{{ url_for('canais') }}" class="{{ 'on' if request.endpoint == 'canais' }}">Canais</a>
+      {% if visitas %}<span class="mast-vis">{{ visitas | miles }} visitas</span>{% endif %}
     </div>
   </div>
   <div class="mast-main">
@@ -51,7 +52,6 @@
 <footer class="ft wrap">
   <span class="ft-brand">3R NEWS</span>
   <span class="ft-meta">{{ total_acervo | miles }} matérias no acervo · coleta automática a cada 30 min</span>
-  {% if visitas %}<span class="ft-vis">{{ visitas | miles }} acessos</span>{% endif %}
 </footer>
 
 <button id="topo" aria-label="Voltar ao topo" hidden>↑</button>
