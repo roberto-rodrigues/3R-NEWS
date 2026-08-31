@@ -250,9 +250,11 @@ def coletar():
 
     O cron do GitHub Actions e best-effort e chegou a atrasar 11h; um agendador HTTP
     dedicado e pontual. Protegida por COLLECT_KEY (header X-Collect-Key ou ?key=).
-    Fontes do DF entram primeiro na fila e o tempo e limitado a 85s para caber no
-    maxDuration de 120s da funcao no Vercel. ?grupo=1|2|3 divide as fontes em tres
-    fatias curtas, para agendadores com timeout de resposta pequeno.
+    Fontes do DF entram primeiro na fila.
+
+    ?grupo=1|2|3 divide as fontes em tres fatias e reduz o orcamento para 22s, para
+    responder dentro do timeout de 30s do cron-job.org; sem grupo, roda tudo com 85s
+    (cabe no maxDuration de 120s da funcao no Vercel).
     """
     if not COLLECT_KEY:
         return {'erro': 'COLLECT_KEY nao configurada no servidor'}, 503
@@ -263,11 +265,13 @@ def coletar():
     sites = all_sites()
     fila = [s for s in FONTES_DF if s in sites] + [s for s in sites if s not in FONTES_DF]
     grupo = request.args.get('grupo')
+    orcamento = 85
     if grupo in ('1', '2', '3'):
         fila = fila[int(grupo) - 1::3]
+        orcamento = 22
 
     inicio = time.monotonic()
-    total = collect_once(store, fila, time_budget=85)
+    total = collect_once(store, fila, time_budget=orcamento)
     # A home usa cache de 5 min para estes valores; invalida para refletir a coleta.
     for k in ('ultima_noticia', 'total_geral', 'date_bounds', 'fontes'):
         _cache.pop(k, None)
