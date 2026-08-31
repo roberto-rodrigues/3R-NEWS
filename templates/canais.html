@@ -6,7 +6,7 @@
 {% block content %}
 <div class="cv-head">
   <h1>Canais</h1>
-  <div class="cv-count">{{ n_ativos }} de {{ n_total }} ativos</div>
+  <div class="cv-count"><span id="cv-n">{{ n_ativos }}</span> de {{ n_total }} ativos</div>
   <a class="logout-link" href="{{ url_for('admin_logout') }}">Sair ✕</a>
 </div>
 
@@ -18,14 +18,13 @@
   <div class="cv-grid">
     {% for c in canais %}
     <label class="citem {{ 'on' if c.ativo }}">
-      <input type="checkbox" name="ativos" value="{{ c.nome }}" {{ 'checked' if c.ativo }}
-             style="display:none">
+      <input type="checkbox" name="ativos" value="{{ c.nome }}" {{ 'checked' if c.ativo }}>
       <span class="cbox"></span>
       <div>
         <div class="ci-name">{{ c.nome }}</div>
-        <div class="ci-slug">{% if c.ativo %}★ ativo{% endif %}</div>
+        <div class="ci-slug"></div>
       </div>
-      <span class="ci-n">{{ c.total }}</span>
+      <span class="ci-n">{{ c.total }} matérias</span>
     </label>
     {% endfor %}
   </div>
@@ -35,4 +34,19 @@
     {% if salvo %}<span class="msg-ok">✓ Salvo.</span>{% endif %}
   </div>
 </form>
+
+{# Feedback imediato ao marcar/desmarcar: sem isto o clique muda o estado do
+   checkbox oculto mas nada na tela responde ate o Salvar. #}
+<script>
+(function(){
+  var cont = document.getElementById('cv-n');
+  var caixas = document.querySelectorAll('.citem input');
+  caixas.forEach(function(c){
+    c.addEventListener('change', function(){
+      c.closest('.citem').classList.toggle('on', c.checked);
+      cont.textContent = document.querySelectorAll('.citem input:checked').length;
+    });
+  });
+})();
+</script>
 {% endblock %}

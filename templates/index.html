@@ -6,8 +6,8 @@
   <div class="sb-q">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     <input id="q" type="text" name="q" value="{{ termo }}"
-           placeholder="Buscar assunto, nome, serviço do GDF…"
-           autocomplete="off" spellcheck="false" autofocus>
+           placeholder="Buscar assunto, nome, serviço do GDF…  (atalho: /)"
+           autocomplete="off" spellcheck="false" enterkeyhint="search">
   </div>
   <select name="fonte" class="sb-sel" aria-label="Canal">
     <option value="">Todos os canais</option>
@@ -208,13 +208,13 @@
   {% set hp = '1' if hoje else none %}
   <nav class="pager" aria-label="Paginação">
     {% if page > 1 %}
-      <a href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page-1) }}">← anterior</a>
+      <a rel="prev" href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page-1) }}">← anterior</a>
     {% else %}
       <span class="off">← anterior</span>
     {% endif %}
     <span class="pg-info">{{ page }} / {{ max_page }}</span>
     {% if page < max_page %}
-      <a href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page+1) }}">próxima →</a>
+      <a rel="next" href="{{ url_for('index', q=termo, fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp, page=page+1) }}">próxima →</a>
     {% else %}
       <span class="off">próxima →</span>
     {% endif %}
@@ -230,23 +230,42 @@
 </div>
 {% endif %}
 
+{# Atalhos de teclado: "/" foca a busca, Esc sai dela. #}
+<script>
+document.addEventListener('keydown', function(e){
+  var q = document.getElementById('q');
+  if (!q) return;
+  var tag = e.target.tagName;
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey &&
+      tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+    e.preventDefault();
+    q.focus();
+    q.select();
+  } else if (e.key === 'Escape' && e.target === q) {
+    q.blur();
+  }
+});
+</script>
+
 {# Auto-refresh a cada 30 min quando sem filtros ativos.
-   Usa visibilitychange para contornar throttling de timers em abas inativas. #}
+   Recarrega na hora se a aba esta oculta ou o leitor esta perto do topo; se estiver
+   lendo no meio da pagina, espera ele subir ou trocar de aba, para nao perder o lugar.
+   O visibilitychange cobre o throttling de timers que navegadores aplicam em abas
+   inativas (um setTimeout longo nao dispara em aba de fundo). #}
 {% if not tem_filtro %}
 <script>
 (function(){
   var carregada = Date.now();
   var INTERVALO = 30 * 60 * 1000;
-  function recarregar(){ location.reload(); }
-  var timer = setTimeout(recarregar, INTERVALO);
+  function vencido(){ return Date.now() - carregada >= INTERVALO; }
+  function tentar(){
+    if (vencido() && (document.hidden || scrollY < 400)) location.reload();
+  }
+  setInterval(tentar, 60 * 1000);
   document.addEventListener('visibilitychange', function(){
-    if (!document.hidden) {
-      if (Date.now() - carregada >= INTERVALO) {
-        clearTimeout(timer);
-        recarregar();
-      }
-    }
+    if (!document.hidden && vencido()) location.reload();
   });
+  addEventListener('scroll', function(){ if (vencido() && scrollY < 100) location.reload(); }, {passive:true});
 })();
 </script>
 {% endif %}

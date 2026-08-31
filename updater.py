@@ -5,6 +5,7 @@ tanto o CLI (asimov_news.py) quanto a interface web (web.py) usem exatamente o m
 codigo de coleta e a mesma lista de fontes (scraping_sites.site.all_sites).
 """
 import threading
+import time
 from datetime import datetime
 
 from scraping_sites.site import Site, all_sites
@@ -13,16 +14,22 @@ from storage import now_brt
 UPDATE_INTERVAL_SECONDS = 30 * 60
 
 
-def collect_once(store, sites=None, log=print):
+def collect_once(store, sites=None, log=print, time_budget=None):
     """Faz uma passada por todas as fontes, gravando as noticias novas em `store`.
 
     Falha em uma fonte nao interrompe as demais. Datas ausentes sao gravadas como a hora
     da coleta e marcadas com estimada=True (ver storage.add_news / coluna data_estimada).
+    `time_budget` (segundos) limita a passada: fontes restantes sao puladas ao estourar,
+    para caber no maxDuration da funcao serverless quando disparada via /coletar.
     Retorna a quantidade de noticias processadas.
     """
     sites = sites if sites is not None else all_sites()
+    inicio = time.monotonic()
     total = 0
     for nome in sites:
+        if time_budget is not None and time.monotonic() - inicio > time_budget:
+            log(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] Orcamento de {time_budget}s estourado; fontes restantes puladas")
+            break
         try:
             site = Site(nome)
             site.update_news()

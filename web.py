@@ -7,7 +7,9 @@ le e exibe, com busca, filtros combinados (canal + periodo) e paginacao.
 Uso:
     python web.py            # abre em http://127.0.0.1:5000
 """
+import hmac
 import os
+import time
 from datetime import datetime, timedelta
 from math import ceil
 
@@ -15,7 +17,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from markupsafe import Markup, escape
 
 from storage import NewsStore, normalize_text, now_brt
-from updater import BackgroundUpdater
+from updater import BackgroundUpdater, collect_once
 from scraping_sites.site import all_sites
 from deep_search import deep_search, supported_sources
 
@@ -28,6 +30,11 @@ FONTES_DF = ['agenciabrasilia-df', 'metropoles-df', 'correio-df', 'r7-df']
 # Defina ADMIN_KEY e SECRET_KEY nas variáveis de ambiente do Vercel.
 # Sem ADMIN_KEY definida, o acesso é livre (modo desenvolvimento local).
 ADMIN_KEY = os.environ.get('ADMIN_KEY', '')
+
+# Chave que autoriza o disparo remoto da coleta via GET/POST /coletar.
+# Defina COLLECT_KEY no Vercel e configure um agendador externo (ex.: cron-job.org)
+# para chamar a URL a cada 30 min -- o cron do GitHub Actions atrasa horas.
+COLLECT_KEY = os.environ.get('COLLECT_KEY', '')
 
 
 def _admin_ok():
@@ -57,6 +64,11 @@ COLETAR = os.environ.get('ASIMOV_NO_COLLECT') != '1'
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=bool(os.environ.get('VERCEL')),
+)
 store = NewsStore()
 
 
@@ -66,9 +78,23 @@ def miles_filter(n):
     return f'{int(n):,}'.replace(',', '.')
 
 
+def _atualizado_em():
+    ultima = _cached('ultima_noticia', store.get_latest_news_date)
+    return ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
+
+
 @app.context_processor
-def inject_visitas():
-    return {'visitas': _cached('visitas', store.get_visitas)}
+def inject_globais():
+    """Dados que o base.html usa em toda pagina, para nenhuma view precisar repassa-los.
+
+    `total_acervo` e o total geral do banco -- o masthead anuncia "materias no acervo",
+    entao nao pode variar com o filtro ativo (o `total` filtrado continua por view).
+    """
+    return {
+        'visitas': _cached('visitas', store.get_visitas),
+        'total_acervo': _cached('total_geral', store.count_news),
+        'atualizado_em': _atualizado_em(),
+    }
 
 
 def _parse_int(value, default=None):
@@ -144,14 +170,18 @@ def index():
         min_date = datetime(ano_ini, 1, 1) if ano_ini else None
         max_date = datetime(ano_fim, 12, 31, 23, 59, 59) if ano_fim else None
 
+    tem_filtro = bool(termo or fonte or ano_ini or ano_fim or hoje)
     filtros = dict(fontes=fontes, search=termo or None, min_date=min_date, max_date=max_date)
     total = store.count_news(**filtros)
     max_page = max(1, ceil(total / PAGE_SIZE))
     page = min(max(page, 1), max_page)
     offset = (page - 1) * PAGE_SIZE
 
-    store.increment_visitas()
-    _cache.pop('visitas', None)  # invalida cache para refletir novo valor
+    # Conta como acesso apenas a home sem filtros e na primeira pagina, para que
+    # paginacao e buscas nao inflem o numero exibido no rodape.
+    if not tem_filtro and page == 1:
+        store.increment_visitas()
+        _cache.pop('visitas', None)
 
     priority = FONTES_DF if not fontes else None
     noticias = store.get_news(limit=PAGE_SIZE, offset=offset, priority_fontes=priority, **filtros)
@@ -159,8 +189,6 @@ def index():
         n['titulo_html'] = _highlight(n['materia'], termo)
 
     ano_min, ano_max = _cached('date_bounds', store.get_date_bounds)
-    ultima = _cached('ultima_noticia', store.get_latest_news_date)
-    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
 
     return render_template(
         'index.html',
@@ -182,8 +210,7 @@ def index():
         deep_sources=_cached('deep_sources', supported_sources),
         ano_min=ano_min,
         ano_max=ano_max,
-        tem_filtro=bool(termo or fonte or ano_ini or ano_fim or hoje),
-        atualizado_em=atualizado_em,
+        tem_filtro=tem_filtro,
     )
 
 
@@ -217,6 +244,40 @@ def busca_profunda():
     ))
 
 
+@app.route('/coletar', methods=['GET', 'POST'])
+def coletar():
+    """Dispara uma passada de coleta via HTTP, para agendadores externos (cron-job.org).
+
+    O cron do GitHub Actions e best-effort e chegou a atrasar 11h; um agendador HTTP
+    dedicado e pontual. Protegida por COLLECT_KEY (header X-Collect-Key ou ?key=).
+    Fontes do DF entram primeiro na fila e o tempo e limitado a 85s para caber no
+    maxDuration de 120s da funcao no Vercel. ?grupo=1|2|3 divide as fontes em tres
+    fatias curtas, para agendadores com timeout de resposta pequeno.
+    """
+    if not COLLECT_KEY:
+        return {'erro': 'COLLECT_KEY nao configurada no servidor'}, 503
+    chave = request.headers.get('X-Collect-Key') or request.args.get('key') or ''
+    if not hmac.compare_digest(chave, COLLECT_KEY):
+        return {'erro': 'nao autorizado'}, 403
+
+    sites = all_sites()
+    fila = [s for s in FONTES_DF if s in sites] + [s for s in sites if s not in FONTES_DF]
+    grupo = request.args.get('grupo')
+    if grupo in ('1', '2', '3'):
+        fila = fila[int(grupo) - 1::3]
+
+    inicio = time.monotonic()
+    total = collect_once(store, fila, time_budget=85)
+    # A home usa cache de 5 min para estes valores; invalida para refletir a coleta.
+    for k in ('ultima_noticia', 'total_geral', 'date_bounds', 'fontes'):
+        _cache.pop(k, None)
+    return {
+        'processadas': total,
+        'fontes_na_fila': len(fila),
+        'duracao_s': round(time.monotonic() - inicio, 1),
+    }
+
+
 @app.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
     erro = None
@@ -225,11 +286,7 @@ def admin_login():
             session['admin'] = True
             return redirect(request.args.get('next') or url_for('canais'))
         erro = 'Senha incorreta.'
-    ultima = _cached('ultima_noticia', store.get_latest_news_date)
-    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
-    return render_template('admin_login.html', erro=erro,
-                           total=_cached('total_geral', store.count_news),
-                           atualizado_em=atualizado_em)
+    return render_template('admin_login.html', erro=erro)
 
 
 @app.route('/admin-logout')
@@ -261,16 +318,12 @@ def canais():
         {'nome': f, 'ativo': f in ativos, 'total': contagens.get(f, 0)}
         for f in todas
     ]
-    ultima = _cached('ultima_noticia', store.get_latest_news_date)
-    atualizado_em = ultima.strftime('%d/%m/%Y %H:%M') if ultima else now_brt().strftime('%d/%m/%Y %H:%M')
     return render_template(
         'canais.html',
         canais=canais_info,
         n_ativos=len(ativos),
         n_total=len(todas),
         salvo=request.args.get('salvo') == '1',
-        total=_cached('total_geral', store.count_news),
-        atualizado_em=atualizado_em,
     )
 
 
