@@ -9,6 +9,8 @@ Uso:
 """
 import hmac
 import os
+import secrets
+import sys
 import time
 from datetime import datetime, timedelta
 from math import ceil
@@ -37,10 +39,22 @@ ADMIN_KEY = os.environ.get('ADMIN_KEY', '')
 COLLECT_KEY = os.environ.get('COLLECT_KEY', '')
 
 
+def _em_producao() -> bool:
+    """True quando roda em produção (Vercel ou FLASK_ENV=production)."""
+    return bool(os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV')) or (
+        os.environ.get('FLASK_ENV') == 'production'
+    )
+
+
 def _admin_ok():
-    """Retorna True se o usuário está autenticado ou se ADMIN_KEY não foi configurada."""
+    """True se o usuário está autenticado.
+
+    Sem ADMIN_KEY: libera somente FORA de produção (desenvolvimento local).
+    Em produção o acesso fica fechado — antes, a ausência de ADMIN_KEY deixava
+    a página Canais aberta para qualquer visitante (a página respondia 200).
+    """
     if not ADMIN_KEY:
-        return True
+        return not _em_producao()
     return session.get('admin') is True
 
 # Cache simples em memória para queries que mudam pouco (reduz latência no Vercel).
@@ -63,7 +77,19 @@ ESCOPO_ATIVOS = '__ativos__'
 COLETAR = os.environ.get('ASIMOV_NO_COLLECT') != '1'
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key')
+# Sem SECRET_KEY definida, uma chave fixa e conhecida permitiria forjar o cookie
+# de admin. Em produção usamos uma chave aleatória por processo (as sessões caem a
+# cada cold start) e avisamos no log; fora de produção, uma chave local qualquer.
+_chave_secreta = os.environ.get('SECRET_KEY', '')
+if not _chave_secreta:
+    _chave_secreta = secrets.token_hex(32)
+    if _em_producao():
+        print(
+            '[AVISO] SECRET_KEY nao configurada: usando chave aleatoria por processo. '
+            'Configure SECRET_KEY nas variaveis de ambiente do Vercel.',
+            file=sys.stderr,
+        )
+app.secret_key = _chave_secreta
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
@@ -286,7 +312,10 @@ def coletar():
 def admin_login():
     erro = None
     if request.method == 'POST':
-        if request.form.get('senha') == ADMIN_KEY:
+        if not ADMIN_KEY:
+            return render_template('admin_login.html',
+                                   erro='ADMIN_KEY nao configurada no servidor.'), 503
+        if hmac.compare_digest(request.form.get('senha') or '', ADMIN_KEY):
             session['admin'] = True
             return redirect(request.args.get('next') or url_for('canais'))
         erro = 'Senha incorreta.'
