@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}3R NEWS{% if termo %} — {{ termo }}{% endif %}{% endblock %}
 
+{% block mast_intro %}
+<div class="mast-intro">
+  <h1>Notícias do DF em um só lugar</h1>
+  <p>Acompanhe manchetes de diferentes veículos, pesquise um assunto e escolha os canais que deseja ver. Ao abrir uma notícia, você vai para a publicação no site da fonte original.</p>
+</div>
+{% endblock %}
+
 {% block searchbar %}
 <form class="sb-in" method="get" action="{{ url_for('index') }}" autocomplete="off">
   <div class="sb-q">

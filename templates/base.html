@@ -36,6 +36,7 @@
       <div class="total">{{ total_acervo | miles }} matérias no acervo</div>
     </div>
   </div>
+  {% block mast_intro %}{% endblock %}
 </div>
 </header>
 
@@ -52,6 +53,7 @@
 <footer class="ft wrap">
   <span class="ft-brand">3R NEWS</span>
   <span class="ft-meta">{{ total_acervo | miles }} matérias no acervo · coleta automática a cada 30 min</span>
+  <p class="ft-note"><span>O 3R-NEWS reúne links de notícias publicadas por outras fontes. O conteúdo de cada matéria é de responsabilidade do veículo que a publicou.</span></p>
 </footer>
 
 <button id="topo" aria-label="Voltar ao topo" hidden>↑</button>

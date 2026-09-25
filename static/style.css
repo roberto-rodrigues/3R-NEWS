@@ -98,6 +98,9 @@ img{display:block;width:100%;height:100%;object-fit:cover}
 .mast-info .ed{display:none}
 .mast-info .meta{font-size:14px;color:var(--tinta-2);font-weight:500}
 .mast-info .total{font-size:13px;color:var(--tinta-3);margin-top:2px}
+.mast-intro{padding:0 0 var(--sp4);max-width:76ch}
+.mast-intro h1{font-size:clamp(20px,2.4vw,28px);line-height:1.2}
+.mast-intro p{margin:var(--sp2) 0 0;color:var(--tinta-2);line-height:1.45}
 
 /* ── search bar ── */
 .searchbar{background:var(--papel-2);border-bottom:1px solid var(--fio)}
@@ -232,9 +235,11 @@ img{display:block;width:100%;height:100%;object-fit:cover}
 .pager .ml{margin-left:auto}
 
 /* footer */
-.ft{border-top:1px solid var(--fio);padding:var(--sp4) 0 var(--sp5);margin-top:var(--sp5);display:flex;gap:var(--sp4);align-items:baseline;flex-wrap:wrap}
+.ft{border-top:1px solid var(--fio);padding:var(--sp4) var(--sp4) var(--sp5);margin-top:var(--sp5);display:flex;gap:var(--sp4);align-items:baseline;flex-wrap:wrap}
 .ft-brand{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-.02em}
 .ft-meta{font-size:14px;color:var(--tinta-3)}
+.ft-note{flex-basis:100%;margin:0;font-size:14px;color:var(--tinta-2);line-height:1.5}
+.ft-note span{display:block;max-width:78ch}
 .ft-vis{margin-left:auto;font-family:var(--display);font-size:12.5px;color:var(--tinta-3)}
 
 /* ════════ TELA DE CANAIS ════════ */
