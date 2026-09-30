@@ -11,8 +11,8 @@
 {% block searchbar %}
 <form class="sb-in" method="get" action="{{ url_for('index') }}" autocomplete="off">
   <div class="sb-q">
-    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input id="q" type="text" name="q" value="{{ termo }}"
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="q" type="search" name="q" aria-label="Buscar notícias" value="{{ termo }}"
            placeholder="Buscar assunto, nome, serviço do GDF…"
            autocomplete="off" spellcheck="false" enterkeyhint="search">
   </div>
@@ -45,7 +45,7 @@
 <div class="canal-atalhos">
   {% for valor, rotulo in canais_fixos %}
   <a href="{{ url_for('index', fonte=valor) }}"
-     class="atalho {{ 'atalho-on' if fonte == valor }}">{{ rotulo }}</a>
+     class="atalho {{ 'atalho-on' if fonte == valor }}"{% if fonte == valor %} aria-current="page"{% endif %}>{{ rotulo }}</a>
   {% endfor %}
 </div>
 
@@ -54,22 +54,22 @@
 {% if tem_filtro %}
   {% set hp = '1' if hoje else none %}
   {% if termo %}
-    <span class="chip">"{{ termo }}" <a href="{{ url_for('index', fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+    <span class="chip">"{{ termo }}" <a href="{{ url_for('index', fonte=fonte, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}" aria-label="Remover filtro de busca: {{ termo }}">✕</a></span>
   {% endif %}
   {% if fonte == escopo_ativos %}
-    <span class="chip">★ meus canais <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+    <span class="chip">★ meus canais <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}" aria-label="Remover filtro meus canais">✕</a></span>
   {% elif fonte %}
-    <span class="chip">{{ fonte }} <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}">✕</a></span>
+    <span class="chip">{{ fonte }} <a href="{{ url_for('index', q=termo, ano_ini=ano_ini, ano_fim=ano_fim, hoje=hp) }}" aria-label="Remover filtro de canal: {{ fonte }}">✕</a></span>
   {% endif %}
   {% if hoje %}
-    <span class="chip">hoje <a href="{{ url_for('index', q=termo, fonte=fonte) }}">✕</a></span>
+    <span class="chip">hoje <a href="{{ url_for('index', q=termo, fonte=fonte) }}" aria-label="Remover filtro de hoje">✕</a></span>
   {% endif %}
   {% if ano_ini or ano_fim %}
-    <span class="chip">{{ ano_ini or '…' }}–{{ ano_fim or '…' }} <a href="{{ url_for('index', q=termo, fonte=fonte) }}">✕</a></span>
+    <span class="chip">{{ ano_ini or '…' }}–{{ ano_fim or '…' }} <a href="{{ url_for('index', q=termo, fonte=fonte) }}" aria-label="Remover filtro de período">✕</a></span>
   {% endif %}
   <a class="limpar" href="{{ url_for('index') }}">limpar tudo</a>
 {% endif %}
-<span class="contagem">
+<span class="contagem" role="status" aria-live="polite">
   {{ total }} resultado{{ 's' if total != 1 }}
   {% if total and max_page > 1 %} · {{ primeiro }}–{{ ultimo }}{% endif %}
 </span>

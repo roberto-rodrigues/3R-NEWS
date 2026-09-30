@@ -61,7 +61,7 @@
 (function(){
   var b = document.getElementById('topo');
   addEventListener('scroll', function(){ b.hidden = scrollY < 600; }, {passive:true});
-  b.addEventListener('click', function(){ scrollTo({top:0, behavior:'smooth'}); });
+  b.addEventListener('click', function(){ scrollTo({top:0, behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}); });
 })();
 </script>
 </body>
