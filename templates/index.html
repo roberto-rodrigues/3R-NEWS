@@ -41,6 +41,7 @@
   ('correio-df', 'Correio Braziliense'),
   ('r7-df', 'R7 DF'),
   ('cnn', 'CNN'),
+  ('ohoje-df', 'O Hoje (DF/Brasília)'),
 ] %}
 <div class="canal-atalhos">
   {% for valor, rotulo in canais_fixos %}
@@ -128,7 +129,7 @@
           <div class="lead-meta">
             <span>{{ lead.data.strftime('%d/%m/%y') }}</span>
             <span>{{ lead.data.strftime('%H:%M') }}</span>
-            {% if lead.data_estimada %}<span title="Data aproximada">~ aprox.</span>{% endif %}
+            {% if lead.data_estimada %}<span title="Data ou horário aproximado">~ aprox.</span>{% endif %}
           </div>
         </div>
       </div>
@@ -143,7 +144,7 @@
           <div class="sub-meta">
             <span>{{ n.data.strftime('%d/%m/%y') }}</span>
             <span>{{ n.data.strftime('%H:%M') }}</span>
-            {% if n.data_estimada %}<span title="Data aproximada">~ aprox.</span>{% endif %}
+            {% if n.data_estimada %}<span title="Data ou horário aproximado">~ aprox.</span>{% endif %}
           </div>
         </article>
         {% endfor %}
@@ -200,7 +201,7 @@
             <span>{{ n.data.strftime('%d/%m/%y') }}</span>
             <span>{{ n.data.strftime('%H:%M') }}</span>
             {% if n.data_estimada %}
-              <span class="tag-aprox" title="Data é a hora de coleta">~ aprox.</span>
+              <span class="tag-aprox" title="Data ou horário aproximado">~ aprox.</span>
             {% endif %}
           </div>
         </div>

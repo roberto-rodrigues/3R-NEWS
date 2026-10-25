@@ -1,6 +1,6 @@
 import re
 import time
-from urllib.parse import urlparse, urljoin
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 from email.utils import parsedate_to_datetime
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -124,6 +124,18 @@ LINK_LIST_TARGETS = {
     },
 }
 
+# O Hoje nao tem editoria de Brasília/DF no filtro de busca. Consulta as duas
+# expressoes do campo publico, segue os links de paginação e limita a coleta a
+# tres páginas por termo para evitar varrer o arquivo histórico.
+# A data vem no permalink (YYYY/MM/DD), sem horario; e marcada como estimada.
+WORDPRESS_SEARCH_TARGETS = {
+    'ohoje-df': {
+        'base_url': 'https://ohoje.com/',
+        'queries': ('distrito federal', 'brasília'),
+        'max_pages': 3,
+    },
+}
+
 
 def all_sites():
     """Fonte unica da verdade: todas as fontes suportadas, derivadas das configuracoes de
@@ -135,6 +147,7 @@ def all_sites():
         + list(ARTICLE_TARGETS)
         + list(LISTA_INTERNA_TARGETS)
         + list(LINK_LIST_TARGETS)
+        + list(WORDPRESS_SEARCH_TARGETS)
     )
 
 
@@ -154,6 +167,8 @@ class Site:
             self.news = self._scrape_lista_interna(LISTA_INTERNA_TARGETS[self.opcao])
         elif self.opcao in LINK_LIST_TARGETS:
             self.news = self._scrape_link_list(LINK_LIST_TARGETS[self.opcao])
+        elif self.opcao in WORDPRESS_SEARCH_TARGETS:
+            self.news = self._scrape_wordpress_search(WORDPRESS_SEARCH_TARGETS[self.opcao])
         else:
             raise ValueError(f"Site nao suportado: {self.opcao}")
 
@@ -308,6 +323,95 @@ class Site:
 
             news.append({'materia': title_text, 'link': href, 'data': data})
             seen_links.add(href)
+        return news
+
+    @staticmethod
+    def _next_wordpress_search_page(soup, base_url, term, current_page, allowed_hosts):
+        expected_page = current_page + 1
+        base_path = urlparse(base_url).path.rstrip('/')
+        expected_path = f'{base_path}/page/{expected_page}/' if base_path else f'/page/{expected_page}/'
+
+        for anchor in soup.select('a[href]'):
+            candidate = urljoin(base_url, anchor.get('href', ''))
+            parsed = urlparse(candidate)
+            if parsed.scheme != 'https' or parsed.hostname not in allowed_hosts:
+                continue
+            if parsed.path != expected_path:
+                continue
+            if parse_qs(parsed.query).get('s') == [term]:
+                return candidate
+        return None
+
+    def _scrape_wordpress_search(self, target):
+        """Une até tres páginas das buscas do O Hoje para DF e Brasília."""
+        news = []
+        seen_links = set()
+        base_url = target['base_url']
+        hostname = urlparse(base_url).hostname
+        allowed_hosts = {hostname, f'www.{hostname}'}
+        max_pages = min(3, max(1, int(target.get('max_pages', 1))))
+
+        for term in target['queries']:
+            search_url = f"{base_url}?s={quote(term, safe='')}"
+            for page_number in range(1, max_pages + 1):
+                response = _get_with_retry(search_url)
+                soup = _soup(response)
+                body_classes = set(soup.body.get('class', [])) if soup.body else set()
+                if 'search-results' not in body_classes:
+                    raise ValueError(f"Resposta inesperada na busca do O Hoje: {search_url}")
+
+                for article in soup.select('article.post.type-post.status-publish'):
+                    title_tag = article.select_one('h1, h2, h3, h4')
+                    if title_tag is None:
+                        continue
+                    anchor = (
+                        title_tag.find_parent('a', href=True)
+                        or title_tag.find('a', href=True)
+                        or article.find_parent('a', href=True)
+                    )
+                    if anchor is None:
+                        continue
+
+                    link = urljoin(base_url, anchor.get('href'))
+                    parsed_link = urlparse(link)
+                    if (
+                        parsed_link.scheme != 'https'
+                        or parsed_link.hostname not in allowed_hosts
+                        or link in seen_links
+                    ):
+                        continue
+
+                    match = re.match(r'^/(\d{4})/(\d{2})/(\d{2})/', parsed_link.path)
+                    if not match:
+                        continue
+                    try:
+                        data = datetime.strptime('/'.join(match.groups()), '%Y/%m/%d')
+                    except ValueError:
+                        continue
+
+                    title = title_tag.get_text(' ', strip=True)
+                    if not title:
+                        continue
+
+                    news.append({
+                        'materia': title,
+                        'link': link,
+                        'data': data,
+                        'estimada': True,
+                    })
+                    seen_links.add(link)
+
+                if page_number == max_pages:
+                    break
+                next_page = self._next_wordpress_search_page(
+                    soup, base_url, term, page_number, allowed_hosts
+                )
+                if not next_page:
+                    break
+                search_url = next_page
+
+        if not news:
+            raise ValueError('Nenhum artigo reconhecido nas buscas do O Hoje')
         return news
 
     @staticmethod

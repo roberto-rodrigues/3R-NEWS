@@ -39,7 +39,8 @@ def collect_once(store, sites=None, log=print, time_budget=None):
 
         agora = now_brt()
         linhas = [
-            (nome, item['materia'], item['link'], item['data'] or agora, item['data'] is None)
+            (nome, item['materia'], item['link'], item['data'] or agora,
+             bool(item.get('estimada', item['data'] is None)))
             for item in site.news
         ]
         # Uma unica conexao por fonte, em vez de uma por materia (ver add_news_many).
