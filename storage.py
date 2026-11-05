@@ -54,6 +54,9 @@ class NewsStore:
             conn.execute('CREATE INDEX IF NOT EXISTS idx_noticias_data ON noticias(data DESC)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_noticias_fonte ON noticias(fonte)')
             conn.execute('CREATE INDEX IF NOT EXISTS idx_noticias_busca ON noticias(materia_normalizada)')
+            # Cobre queries filtradas por canal + ordenadas por data (evita dois index scans).
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_noticias_fonte_data ON noticias(fonte, data DESC)')
+            conn.execute('CREATE INDEX IF NOT EXISTS idx_noticias_link ON noticias(link)')
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS sites_ativos (
                     fonte TEXT PRIMARY KEY
@@ -99,16 +102,20 @@ class NewsStore:
         if not valores:
             return 0
 
+        # VALUES list com RETURNING conta só as linhas realmente inseridas
+        # (executemany não suporta RETURNING e seu rowcount é o da última execução).
+        ph = ','.join(['(%s,%s,%s,%s,%s,%s)'] * len(valores))
+        flat = [v for row in valores for v in row]
         with closing(self._connect()) as conn:
-            cursor = conn.cursor()
-            cursor.executemany(
-                '''INSERT INTO noticias (fonte, materia, materia_normalizada, link, data, data_estimada)
-                   VALUES (%s, %s, %s, %s, %s, %s)
-                   ON CONFLICT (fonte, materia) DO NOTHING''',
-                valores,
+            cursor = conn.execute(
+                f'''INSERT INTO noticias (fonte, materia, materia_normalizada, link, data, data_estimada)
+                   VALUES {ph}
+                   ON CONFLICT (fonte, materia) DO NOTHING
+                   RETURNING id''',
+                flat,
             )
             conn.commit()
-            return cursor.rowcount
+            return len(cursor.fetchall())
 
     def get_news(self, fontes=None, search=None, min_date=None, max_date=None,
                  limit=None, offset=0, priority_fontes=None):

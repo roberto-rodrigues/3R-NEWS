@@ -107,7 +107,8 @@ def deep_search(store, termo, min_date=None, max_date=None, log=print):
     with ThreadPoolExecutor(max_workers=len(ADAPTERS)) as executor:
         coletas = list(executor.map(_buscar, ADAPTERS.items()))
 
-    novas = 0
+    agora = now_brt()
+    linhas = []
     encontradas = 0
     for fonte, resultados in coletas:
         for item in resultados:
@@ -119,8 +120,9 @@ def deep_search(store, termo, min_date=None, max_date=None, log=print):
                     continue
             elif tem_faixa:
                 continue
-
             encontradas += 1
-            data = data_real or now_brt()
-            novas += store.add_news(fonte, item['materia'], item['link'], data, estimada=data_real is None)
+            linhas.append((fonte, item['materia'], item['link'],
+                           data_real or agora, data_real is None))
+
+    novas = store.add_news_many(linhas) if linhas else 0
     return novas, encontradas
