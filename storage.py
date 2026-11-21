@@ -87,6 +87,41 @@ class NewsStore:
             conn.commit()
             return cursor.rowcount
 
+    @staticmethod
+    def _dedup_na_lista_por_link(valores):
+        """Remove repetidas por URL dentro do proprio lote (mantem a primeira).
+        Links vazios nao sao comparaveis e passam direto."""
+        vistos = set()
+        unicos = []
+        for v in valores:
+            link = (v[3] or '').strip()
+            if link:
+                if link in vistos:
+                    continue
+                vistos.add(link)
+            unicos.append(v)
+        return unicos
+
+    @staticmethod
+    def _descartar_links_existentes(conn, valores):
+        """Descarta do lote o que ja esta no banco por URL.
+
+        Usa `link = ANY(...)`, que o Postgres atende com o indice idx_noticias_link, em
+        vez de depender so do UNIQUE(fonte, materia) -- que nao pega a mesma URL com o
+        titulo reescrito ou republicada por outra fonte. ON CONFLICT segue como rede
+        de seguranca no INSERT."""
+        links = list({(v[3] or '').strip() for v in valores if (v[3] or '').strip()})
+        if not links:
+            return valores
+        existentes = {
+            row['link'] for row in conn.execute(
+                'SELECT link FROM noticias WHERE link = ANY(%s)', (links,)
+            ).fetchall()
+        }
+        if not existentes:
+            return valores
+        return [v for v in valores if (v[3] or '').strip() not in existentes]
+
     def add_news_many(self, rows):
         """Insere varias noticias numa unica conexao (ignorando duplicatas).
 
@@ -99,14 +134,19 @@ class NewsStore:
             (fonte, materia, normalize_text(materia), link, data, int(bool(estimada)))
             for fonte, materia, link, data, estimada in rows
         ]
+        valores = self._dedup_na_lista_por_link(valores)
         if not valores:
             return 0
 
-        # VALUES list com RETURNING conta só as linhas realmente inseridas
-        # (executemany não suporta RETURNING e seu rowcount é o da última execução).
-        ph = ','.join(['(%s,%s,%s,%s,%s,%s)'] * len(valores))
-        flat = [v for row in valores for v in row]
         with closing(self._connect()) as conn:
+            valores = self._descartar_links_existentes(conn, valores)
+            if not valores:
+                return 0
+
+            # VALUES list com RETURNING conta só as linhas realmente inseridas
+            # (executemany não suporta RETURNING e seu rowcount é o da última execução).
+            ph = ','.join(['(%s,%s,%s,%s,%s,%s)'] * len(valores))
+            flat = [v for row in valores for v in row]
             cursor = conn.execute(
                 f'''INSERT INTO noticias (fonte, materia, materia_normalizada, link, data, data_estimada)
                    VALUES {ph}
